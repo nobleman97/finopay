@@ -1,4 +1,4 @@
-name: Deploy Infrastructure with Terraform
+name: Dev - TF Apply
 
 on:
   # push:
