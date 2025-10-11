@@ -8,7 +8,7 @@ terraform {
     }
   }
 
-   backend "azurerm" {
+  backend "azurerm" {
     resource_group_name  = "management"
     storage_account_name = "finopaydemosa"
     container_name       = "state-files"

@@ -52,7 +52,7 @@ locals {
       source_address_prefix      = "Internet"
       destination_address_prefix = "*"
     }
-    
+
     "db_allow_sql_from_web" = {
       nsg_name                   = "database_tier"
       name                       = "AllowSQLFromWeb"
@@ -82,8 +82,8 @@ module "vnet" {
   version = "~> 0.14.0"
 
   parent_id = azurerm_resource_group.this.id
-  location            = azurerm_resource_group.this.location
-  name                = "vnet-finopay-dev-${azurerm_resource_group.this.location}-001"
+  location  = azurerm_resource_group.this.location
+  name      = "vnet-finopay-dev-${azurerm_resource_group.this.location}-001"
 
   address_space = ["10.0.0.0/16"]
 
