@@ -5,9 +5,7 @@ on:
     branches:
       - dev
       - main
-    paths:
-      - 'infra/**'
-      - '.github/workflows/tf_plan_on_pr.yaml'
+      
   workflow_dispatch:
 
 
