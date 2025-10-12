@@ -192,5 +192,7 @@ module "loadbalancer" {
     http  = ["Tcp", "80", ""]
     https = ["Tcp", "443", ""]
   }
+
+  depends_on = [ azurerm_resource_group.this ]
 }
 
