@@ -1,0 +1,77 @@
+# Network Configuration
+vnet_address_space = ["10.0.0.0/16"]
+
+# NAT Gateway Configuration
+nat_gateway_sku              = "Standard"
+public_ip_sku                = "Standard"
+public_ip_allocation_method  = "Static"
+
+# Load Balancer Configuration
+load_balancers = {
+  web = {
+    type          = "public"
+    sku           = "Standard"
+    frontend_name = "frontend-finopay"
+    remote_port = {
+      http = ["Tcp", "80"]
+    }
+    lb_ports = {
+      http  = ["80", "Tcp", "80"]
+      https = ["443", "Tcp", "443"]
+    }
+    lb_probes = {
+      http  = ["Tcp", "80", ""]
+      https = ["Tcp", "443", ""]
+    }
+  }
+}
+
+# Availability Set Configuration
+availability_set = {
+  platform_update_domain_count = 5
+  platform_fault_domain_count  = 2
+  managed                      = true
+  tags = {
+    environment = "dev"
+    tier        = "web"
+  }
+}
+
+# Virtual Machine Scale Set Configuration
+vmss_config = {
+  vm_size                = "Standard_D2s_v3"
+  initial_instance_count = 2
+  admin_username         = "adminuser"
+  admin_password         = "ChangeMe123!@#" # TODO: Use Azure Key Vault
+  os_disk_caching        = "ReadWrite"
+  os_disk_storage_account_type = "Premium_LRS"
+  os_disk_size_gb        = 128
+
+  source_image_reference = {
+    publisher = "MicrosoftWindowsServer"
+    offer     = "WindowsServer"
+    sku       = "2019-Datacenter"
+    version   = "latest"
+  }
+
+  automatic_os_upgrade_policy = {
+    disable_automatic_rollback  = false
+    enable_automatic_os_upgrade = false
+  }
+
+  automatic_instance_repair = {
+    enabled      = true
+    grace_period = "PT30M"
+  }
+}
+
+# Auto-scaling Configuration
+autoscale_config = {
+  capacity = {
+    default = 2
+    minimum = 2
+    maximum = 10
+  }
+  scale_out_cpu_threshold = 75
+  scale_in_cpu_threshold  = 25
+}
