@@ -237,6 +237,7 @@ resource "azurerm_key_vault_access_policy" "terraform" {
 
   tenant_id = data.azurerm_client_config.current.tenant_id
   object_id = data.azurerm_client_config.current.object_id
+  
 
   secret_permissions = [
     "Get",
@@ -621,10 +622,10 @@ resource "azurerm_backup_protected_vm" "db_vm" {
   ]
 }
 
-resource "azurerm_mssql_database_extended_auditing_policy" "this" {
-  database_id            = azurerm_mssql_database.this.id
-  storage_endpoint       = azurerm_recovery_services_vault.this.id
-  retention_in_days      = var.sql_backup_policy_config.retention_daily.count
-  log_monitoring_enabled = true
-}
+# resource "azurerm_mssql_database_extended_auditing_policy" "this" {
+#   database_id            = azurerm_mssql_database.this.id
+#   storage_endpoint       = azurerm_recovery_services_vault.this.id
+#   retention_in_days      = var.sql_backup_policy_config.retention_daily.count
+#   log_monitoring_enabled = true
+# }
 
