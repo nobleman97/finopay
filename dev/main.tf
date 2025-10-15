@@ -91,7 +91,7 @@ module "vnet" {
 
   parent_id = azurerm_resource_group.this.id
   location  = azurerm_resource_group.this.location
-  name      = "${local.product}-${local.environment}-${azurerm_resource_group.this.location}-${module.naming.virtual_network.name_unique}"
+  name      = "${local.product}-${local.environment}-${azurerm_resource_group.this.location}-${module.naming.virtual_network.name}"
 
   address_space = var.vnet_address_space
 
@@ -123,13 +123,13 @@ module "vnet" {
 # Network Security Groups
 
 resource "azurerm_network_security_group" "web_tier" {
-  name                = "web-${local.product}-${local.environment}-${module.naming.network_security_group.name_unique}"
+  name                = "web-${local.product}-${local.environment}-${module.naming.network_security_group.name}"
   location            = azurerm_resource_group.this.location
   resource_group_name = azurerm_resource_group.this.name
 }
 
 resource "azurerm_network_security_group" "database_tier" {
-  name                = "db-${local.product}-${local.environment}-${module.naming.network_security_group.name_unique}"
+  name                = "database-${local.product}-${local.environment}-${module.naming.network_security_group.name}"
   location            = azurerm_resource_group.this.location
   resource_group_name = azurerm_resource_group.this.name
 }
@@ -184,19 +184,17 @@ module "loadbalancer" {
 
   resource_group_name = azurerm_resource_group.this.name
   location            = azurerm_resource_group.this.location
-  name                = "${local.product}-${local.environment}-${module.naming.lb.name_unique}"
+  name                = "${local.product}-${local.environment}-${module.naming.lb.name}"
   type                = each.value.type
   lb_sku              = each.value.sku
   pip_sku             = var.public_ip_sku
 
   frontend_name = each.value.frontend_name
-  pip_name      = "${local.product}-${local.environment}-${module.naming.lb.name_unique}-${module.naming.public_ip.name}"
+  pip_name      = "${local.product}-${local.environment}-${module.naming.lb.name}-${module.naming.public_ip.name}"
 
   remote_port = each.value.remote_port
-
-  lb_port = each.value.lb_ports
-
-  lb_probe = each.value.lb_probes
+  lb_port     = each.value.lb_ports
+  lb_probe    = each.value.lb_probes
 
   depends_on = [azurerm_resource_group.this]
 }
@@ -218,11 +216,6 @@ resource "azurerm_availability_set" "web_tier" {
 #######################
 # Azure Key Vault
 #######################
-
-# Get current client configuration for Key Vault access
-data "azurerm_client_config" "current" {}
-
-# Key Vault for storing VM credentials
 resource "azurerm_key_vault" "this" {
   name                            = var.key_vault_config.name
   location                        = azurerm_resource_group.this.location
@@ -234,16 +227,16 @@ resource "azurerm_key_vault" "this" {
   enabled_for_template_deployment = var.key_vault_config.enabled_for_template_deployment
   soft_delete_retention_days      = var.key_vault_config.soft_delete_retention_days
   purge_protection_enabled        = var.key_vault_config.purge_protection_enabled
-  enable_rbac_authorization       = var.key_vault_config.enable_rbac_authorization
+  rbac_authorization_enabled      = var.key_vault_config.enable_rbac_authorization
 
   tags = var.key_vault_config.tags
 }
 
-# Access policy for Terraform (current user/service principal)
 resource "azurerm_key_vault_access_policy" "terraform" {
   key_vault_id = azurerm_key_vault.this.id
-  tenant_id    = data.azurerm_client_config.current.tenant_id
-  object_id    = data.azurerm_client_config.current.object_id
+
+  tenant_id = data.azurerm_client_config.current.tenant_id
+  object_id = data.azurerm_client_config.current.object_id
 
   secret_permissions = [
     "Get",
@@ -257,7 +250,9 @@ resource "azurerm_key_vault_access_policy" "terraform" {
   ]
 }
 
+#####################################
 # Generate random passwords for VMs
+#####################################
 resource "random_password" "vmss_admin" {
   length  = 24
   special = true
@@ -274,7 +269,7 @@ resource "random_password" "db_admin" {
   numeric = true
 }
 
-# Store VM admin username in Key Vault
+# Store secrets in Key Vault
 resource "azurerm_key_vault_secret" "admin_username" {
   name         = "vm-admin-username"
   value        = var.admin_username
@@ -283,7 +278,6 @@ resource "azurerm_key_vault_secret" "admin_username" {
   depends_on = [azurerm_key_vault_access_policy.terraform]
 }
 
-# Store VMSS admin password in Key Vault
 resource "azurerm_key_vault_secret" "vmss_admin_password" {
   name         = "vmss-admin-password"
   value        = random_password.vmss_admin.result
@@ -292,7 +286,6 @@ resource "azurerm_key_vault_secret" "vmss_admin_password" {
   depends_on = [azurerm_key_vault_access_policy.terraform]
 }
 
-# Store DB VM admin password in Key Vault
 resource "azurerm_key_vault_secret" "db_admin_password" {
   name         = "db-admin-password"
   value        = random_password.db_admin.result
@@ -301,19 +294,20 @@ resource "azurerm_key_vault_secret" "db_admin_password" {
   depends_on = [azurerm_key_vault_access_policy.terraform]
 }
 
-#######################
-# Web Tier VMSS
-#######################
+# #######################
+# # Web Tier VMSS
+# #######################
 
 resource "azurerm_windows_virtual_machine_scale_set" "web_tier" {
-  name                = "${local.product}-${local.environment}-web-vmss"
+  name                = "${local.environment}-web"
   location            = azurerm_resource_group.this.location
   resource_group_name = azurerm_resource_group.this.name
+  upgrade_mode        = "Manual"
 
   sku            = var.vmss_config.vm_size
   instances      = var.vmss_config.initial_instance_count
   admin_username = var.admin_username
-  admin_password = random_password.vmss_admin.result
+  admin_password = data.azurerm_key_vault_secret.secrets["vmss-admin-password"].value
 
   source_image_reference {
     publisher = var.vmss_config.source_image_reference.publisher
@@ -342,16 +336,6 @@ resource "azurerm_windows_virtual_machine_scale_set" "web_tier" {
         module.loadbalancer["web"].azurerm_lb_backend_address_pool_id
       ]
     }
-  }
-
-  automatic_os_upgrade_policy {
-    disable_automatic_rollback  = var.vmss_config.automatic_os_upgrade_policy.disable_automatic_rollback
-    enable_automatic_os_upgrade = var.vmss_config.automatic_os_upgrade_policy.enable_automatic_os_upgrade
-  }
-
-  automatic_instance_repair {
-    enabled      = var.vmss_config.automatic_instance_repair.enabled
-    grace_period = var.vmss_config.automatic_instance_repair.grace_period
   }
 
   tags = local.common_tags
@@ -428,7 +412,7 @@ resource "azurerm_windows_virtual_machine" "db_vm" {
 
   computer_name  = var.database_vm_config.computer_name
   admin_username = var.admin_username
-  admin_password = random_password.db_admin.result
+  admin_password = data.azurerm_key_vault_secret.secrets["db-admin-password"].value
 
   os_disk {
     name                 = var.database_vm_config.os_disk_name
@@ -454,18 +438,17 @@ resource "azurerm_windows_virtual_machine" "db_vm" {
 # Application Gateway
 #######################
 
-# Public IP for Application Gateway
 resource "azurerm_public_ip" "appgw" {
   name                = "${local.product}-${local.environment}-appgw-pip"
   location            = azurerm_resource_group.this.location
   resource_group_name = azurerm_resource_group.this.name
-  allocation_method   = "Static"
-  sku                 = "Standard"
+  allocation_method   = var.application_gateway_config.public_ip.allocation_method
+  sku                 = var.application_gateway_config.public_ip.sku
 
   tags = local.common_tags
 }
 
-# Application Gateway
+
 resource "azurerm_application_gateway" "this" {
   name                = var.application_gateway_config.name
   location            = azurerm_resource_group.this.location
@@ -478,46 +461,46 @@ resource "azurerm_application_gateway" "this" {
   }
 
   gateway_ip_configuration {
-    name      = "appgw-ip-config"
+    name      = var.application_gateway_config.gateway_ip_config_name
     subnet_id = module.vnet.subnets["appgw_tier"].resource_id
   }
 
   frontend_port {
-    name = "frontend-port"
+    name = var.application_gateway_config.frontend_port_name
     port = var.application_gateway_config.listener_port
   }
 
   frontend_ip_configuration {
-    name                 = "frontend-ip-config"
+    name                 = var.application_gateway_config.frontend_ip_config_name
     public_ip_address_id = azurerm_public_ip.appgw.id
   }
 
   backend_address_pool {
-    name = "web-backend-pool"
+    name = var.application_gateway_config.backend_pool_name
   }
 
   backend_http_settings {
-    name                  = "backend-http-settings"
-    cookie_based_affinity = "Disabled"
+    name                  = var.application_gateway_config.backend_http_settings_name
+    cookie_based_affinity = var.application_gateway_config.cookie_based_affinity
     port                  = var.application_gateway_config.backend_port
     protocol              = var.application_gateway_config.backend_protocol
     request_timeout       = var.application_gateway_config.request_timeout
   }
 
   http_listener {
-    name                           = "http-listener"
-    frontend_ip_configuration_name = "frontend-ip-config"
-    frontend_port_name             = "frontend-port"
+    name                           = var.application_gateway_config.listener_name
+    frontend_ip_configuration_name = var.application_gateway_config.frontend_ip_config_name
+    frontend_port_name             = var.application_gateway_config.frontend_port_name
     protocol                       = var.application_gateway_config.listener_protocol
   }
 
   request_routing_rule {
-    name                       = "routing-rule"
-    rule_type                  = "Basic"
-    http_listener_name         = "http-listener"
-    backend_address_pool_name  = "web-backend-pool"
-    backend_http_settings_name = "backend-http-settings"
-    priority                   = 100
+    name                       = var.application_gateway_config.routing_rule_name
+    rule_type                  = var.application_gateway_config.routing_rule_type
+    http_listener_name         = var.application_gateway_config.listener_name
+    backend_address_pool_name  = var.application_gateway_config.backend_pool_name
+    backend_http_settings_name = var.application_gateway_config.backend_http_settings_name
+    priority                   = var.application_gateway_config.routing_rule_priority
   }
 
   tags = var.application_gateway_config.tags
@@ -529,7 +512,6 @@ resource "azurerm_application_gateway" "this" {
 # Azure SQL Database
 #######################
 
-# Generate random password for SQL Server admin
 resource "random_password" "sql_admin" {
   length  = 24
   special = true
@@ -538,24 +520,26 @@ resource "random_password" "sql_admin" {
   numeric = true
 }
 
-# Store SQL admin password in Key Vault
 resource "azurerm_key_vault_secret" "sql_admin_password" {
   name         = "sql-admin-password"
   value        = random_password.sql_admin.result
   key_vault_id = azurerm_key_vault.this.id
 
-  depends_on = [azurerm_key_vault_access_policy.terraform]
+  depends_on = [
+    azurerm_key_vault.this
+  ]
 }
 
 # Azure SQL Server
 resource "azurerm_mssql_server" "this" {
-  name                         = var.sql_server_config.name
-  location                     = azurerm_resource_group.this.location
-  resource_group_name          = azurerm_resource_group.this.name
-  version                      = var.sql_server_config.version
-  administrator_login          = var.sql_server_config.administrator_login
-  administrator_login_password = random_password.sql_admin.result
-  minimum_tls_version          = var.sql_server_config.minimum_tls_version
+  name                = var.sql_server_config.name
+  location            = azurerm_resource_group.this.location
+  resource_group_name = azurerm_resource_group.this.name
+
+  version                       = var.sql_server_config.version
+  administrator_login           = var.sql_server_config.administrator_login
+  administrator_login_password  = random_password.sql_admin.result
+  minimum_tls_version           = var.sql_server_config.minimum_tls_version
   public_network_access_enabled = var.sql_server_config.public_network_access_enabled
 
   tags = var.sql_server_config.tags
@@ -563,20 +547,84 @@ resource "azurerm_mssql_server" "this" {
 
 # Firewall rule to allow Azure services
 resource "azurerm_mssql_firewall_rule" "allow_azure_services" {
-  name             = "AllowAzureServices"
-  server_id        = azurerm_mssql_server.this.id
+  name      = "AllowAzureServices"
+  server_id = azurerm_mssql_server.this.id
+
   start_ip_address = "0.0.0.0"
   end_ip_address   = "0.0.0.0"
 }
 
-# Azure SQL Database
 resource "azurerm_mssql_database" "this" {
-  name                = var.sql_database_config.name
-  server_id           = azurerm_mssql_server.this.id
-  collation           = var.sql_database_config.collation
-  sku_name            = var.sql_database_config.sku_name
-  max_size_gb         = var.sql_database_config.max_size_gb
-  zone_redundant      = var.sql_database_config.zone_redundant
+  name           = var.sql_database_config.name
+  server_id      = azurerm_mssql_server.this.id
+  collation      = var.sql_database_config.collation
+  sku_name       = var.sql_database_config.sku_name
+  max_size_gb    = var.sql_database_config.max_size_gb
+  zone_redundant = var.sql_database_config.zone_redundant
 
   tags = var.sql_database_config.tags
 }
+
+#######################
+# Azure Backup
+#######################
+
+resource "azurerm_recovery_services_vault" "this" {
+  name                = var.recovery_services_vault_config.name
+  location            = azurerm_resource_group.this.location
+  resource_group_name = azurerm_resource_group.this.name
+
+  sku                 = var.recovery_services_vault_config.sku
+  soft_delete_enabled = var.recovery_services_vault_config.soft_delete_enabled
+  storage_mode_type   = var.recovery_services_vault_config.storage_mode_type
+
+  tags = var.recovery_services_vault_config.tags
+}
+
+resource "azurerm_backup_policy_vm" "this" {
+  name                = var.vm_backup_policy_config.name
+  resource_group_name = azurerm_resource_group.this.name
+
+  recovery_vault_name = azurerm_recovery_services_vault.this.name
+  timezone            = var.vm_backup_policy_config.timezone
+
+  backup {
+    frequency = var.vm_backup_policy_config.backup.frequency
+    time      = var.vm_backup_policy_config.backup.time
+  }
+
+  retention_daily {
+    count = var.vm_backup_policy_config.retention_daily.count
+  }
+
+  retention_weekly {
+    count    = var.vm_backup_policy_config.retention_weekly.count
+    weekdays = var.vm_backup_policy_config.retention_weekly.weekdays
+  }
+
+  retention_monthly {
+    count    = var.vm_backup_policy_config.retention_monthly.count
+    weekdays = var.vm_backup_policy_config.retention_monthly.weekdays
+    weeks    = var.vm_backup_policy_config.retention_monthly.weeks
+  }
+}
+
+resource "azurerm_backup_protected_vm" "db_vm" {
+  resource_group_name = azurerm_resource_group.this.name
+  recovery_vault_name = azurerm_recovery_services_vault.this.name
+  source_vm_id        = azurerm_windows_virtual_machine.db_vm.id
+  backup_policy_id    = azurerm_backup_policy_vm.this.id
+
+  depends_on = [
+    azurerm_windows_virtual_machine.db_vm,
+    azurerm_backup_policy_vm.this
+  ]
+}
+
+resource "azurerm_mssql_database_extended_auditing_policy" "this" {
+  database_id            = azurerm_mssql_database.this.id
+  storage_endpoint       = azurerm_recovery_services_vault.this.id
+  retention_in_days      = var.sql_backup_policy_config.retention_daily.count
+  log_monitoring_enabled = true
+}
+

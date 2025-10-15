@@ -1,12 +1,10 @@
 # Network Configuration
 vnet_address_space = ["10.0.0.0/16"]
 
-# NAT Gateway and Public IP Configuration
 nat_gateway_sku             = "Standard"
 public_ip_sku               = "Standard"
 public_ip_allocation_method = "Static"
 
-# Load Balancer Configuration
 load_balancers = {
   web = {
     type          = "public"
@@ -26,7 +24,6 @@ load_balancers = {
   }
 }
 
-# Availability Set Configuration
 availability_set = {
   platform_update_domain_count = 5
   platform_fault_domain_count  = 2
@@ -37,15 +34,13 @@ availability_set = {
   }
 }
 
-# Admin Username (shared across all VMs, stored in Key Vault)
 admin_username = "adminuser"
 
-# Virtual Machine Scale Set Configuration
 vmss_config = {
   vm_size                      = "Standard_D2s_v3"
   initial_instance_count       = 2
   os_disk_caching              = "ReadWrite"
-  os_disk_storage_account_type = "Premium_LRS"
+  os_disk_storage_account_type = "Premium_ZRS"
   os_disk_size_gb              = 128
 
   source_image_reference = {
@@ -110,7 +105,7 @@ autoscale_config = {
     }
   ]
 }
-# Database Tier Network Interface Configuration
+
 database_nic_config = {
   name = "nic-db-vm-finopay-dev-001"
   ip_configuration = {
@@ -123,14 +118,13 @@ database_nic_config = {
   }
 }
 
-# Database Tier Virtual Machine Configuration
 database_vm_config = {
   vm_name                      = "vm-db-finopay-dev"
   vm_size                      = "Standard_D4s_v3"
   computer_name                = "db-vm"
   os_disk_name                 = "osdisk-db-vm-finopay-dev"
   os_disk_caching              = "ReadWrite"
-  os_disk_storage_account_type = "Premium_LRS"
+  os_disk_storage_account_type = "Premium_ZRS"
   os_disk_size_gb              = 256
 
   source_image_reference = {
@@ -146,7 +140,6 @@ database_vm_config = {
   }
 }
 
-# Azure Key Vault Configuration
 key_vault_config = {
   name                            = "kv-finopay-dev-001"
   sku_name                        = "standard"
@@ -155,7 +148,7 @@ key_vault_config = {
   enabled_for_template_deployment = true
   soft_delete_retention_days      = 90
   purge_protection_enabled        = false
-  enable_rbac_authorization       = false
+  enable_rbac_authorization       = false # I would implemeent RBAC normally
 
   tags = {
     environment = "dev"
@@ -163,24 +156,36 @@ key_vault_config = {
   }
 }
 
-# Azure Application Gateway Configuration
 application_gateway_config = {
-  name             = "appgw-finopay-dev"
-  sku_name         = "Standard_v2"
-  sku_tier         = "Standard_v2"
-  sku_capacity     = 2
-  backend_port     = 80
-  backend_protocol = "Http"
-  listener_port    = 80
+  name              = "appgw-finopay-dev"
+  sku_name          = "Standard_v2"
+  sku_tier          = "Standard_v2"
+  sku_capacity      = 2
+  backend_port      = 80
+  backend_protocol  = "Http"
+  listener_port     = 80
   listener_protocol = "Http"
-  request_timeout  = 20
+  request_timeout   = 20
+  public_ip = {
+    allocation_method = "Static"
+    sku               = "Standard"
+  }
+  gateway_ip_config_name     = "appgw-ip-config"
+  frontend_port_name         = "frontend-port"
+  frontend_ip_config_name    = "frontend-ip-config"
+  backend_pool_name          = "web-backend-pool"
+  backend_http_settings_name = "backend-http-settings"
+  cookie_based_affinity      = "Disabled"
+  listener_name              = "http-listener"
+  routing_rule_name          = "routing-rule"
+  routing_rule_type          = "Basic"
+  routing_rule_priority      = 100
   tags = {
     environment = "dev"
     tier        = "application-gateway"
   }
 }
 
-# Azure SQL Server Configuration
 sql_server_config = {
   name                          = "sqlserver-finopay-dev"
   version                       = "12.0"
@@ -193,7 +198,6 @@ sql_server_config = {
   }
 }
 
-# Azure SQL Database Configuration
 sql_database_config = {
   name           = "sqldb-finopay-dev"
   collation      = "SQL_Latin1_General_CP1_CI_AS"
@@ -205,3 +209,60 @@ sql_database_config = {
     tier        = "database"
   }
 }
+
+
+vault_secrets = [
+  "db-admin-password",
+  "vmss-admin-password",
+  "sql-admin-password"
+]
+
+recovery_services_vault_config = {
+  name                         = "rsv-finopay-dev"
+  sku                          = "Standard"
+  soft_delete_enabled          = true
+  storage_mode_type            = "GeoRedundant"
+  cross_region_restore_enabled = false
+  tags = {
+    environment = "dev"
+    purpose     = "backup"
+  }
+}
+
+vm_backup_policy_config = {
+  name     = "vm-backup-policy-daily"
+  timezone = "UTC"
+  backup = {
+    frequency = "Daily"
+    time      = "23:00"
+  }
+  retention_daily = {
+    count = 30
+  }
+  retention_weekly = {
+    count    = 12
+    weekdays = ["Sunday"]
+  }
+  retention_monthly = {
+    count    = 12
+    weekdays = ["Sunday"]
+    weeks    = ["First"]
+  }
+}
+
+sql_backup_policy_config = {
+  name = "sql-backup-policy"
+  retention_daily = {
+    count = 7
+  }
+  retention_weekly = {
+    count   = 4
+    weekday = "Sunday"
+  }
+  retention_monthly = {
+    count   = 12
+    weekday = "Sunday"
+    week    = "First"
+  }
+}
+

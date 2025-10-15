@@ -160,39 +160,114 @@ variable "admin_username" {
 variable "application_gateway_config" {
   description = "Configuration settings for Azure Application Gateway."
   type = object({
-    name     = string
-    sku_name = string
-    sku_tier = string
-    sku_capacity = number
-    backend_port = number
-    backend_protocol = string
-    listener_port = number
+    name              = string
+    sku_name          = string
+    sku_tier          = string
+    sku_capacity      = number
+    backend_port      = number
+    backend_protocol  = string
+    listener_port     = number
     listener_protocol = string
-    request_timeout = number
-    tags = map(string)
+    request_timeout   = number
+    public_ip = object({
+      allocation_method = string
+      sku               = string
+    })
+    gateway_ip_config_name     = string
+    frontend_port_name         = string
+    frontend_ip_config_name    = string
+    backend_pool_name          = string
+    backend_http_settings_name = string
+    cookie_based_affinity      = string
+    listener_name              = string
+    routing_rule_name          = string
+    routing_rule_type          = string
+    routing_rule_priority      = number
+    tags                       = map(string)
   })
 }
 
 variable "sql_server_config" {
   description = "Configuration settings for Azure SQL Server."
   type = object({
-    name                         = string
-    version                      = string
-    administrator_login          = string
-    minimum_tls_version          = string
+    name                          = string
+    version                       = string
+    administrator_login           = string
+    minimum_tls_version           = string
     public_network_access_enabled = bool
-    tags                         = map(string)
+    tags                          = map(string)
   })
 }
 
 variable "sql_database_config" {
   description = "Configuration settings for Azure SQL Database."
   type = object({
-    name                = string
-    collation           = string
-    sku_name            = string
-    max_size_gb         = number
-    zone_redundant      = bool
-    tags                = map(string)
+    name           = string
+    collation      = string
+    sku_name       = string
+    max_size_gb    = number
+    zone_redundant = bool
+    tags           = map(string)
   })
 }
+
+variable "vault_secrets" {
+  description = "List of Key Vault secret names to retrieve"
+  type        = list(string)
+}
+
+variable "recovery_services_vault_config" {
+  description = "Configuration settings for Azure Recovery Services Vault."
+  type = object({
+    name                         = string
+    sku                          = string
+    soft_delete_enabled          = bool
+    storage_mode_type            = string
+    cross_region_restore_enabled = bool
+    tags                         = map(string)
+  })
+}
+
+variable "vm_backup_policy_config" {
+  description = "Configuration settings for VM backup policy."
+  type = object({
+    name     = string
+    timezone = string
+    backup = object({
+      frequency = string
+      time      = string
+    })
+    retention_daily = object({
+      count = number
+    })
+    retention_weekly = object({
+      count    = number
+      weekdays = list(string)
+    })
+    retention_monthly = object({
+      count    = number
+      weekdays = list(string)
+      weeks    = list(string)
+    })
+  })
+}
+
+variable "sql_backup_policy_config" {
+  description = "Configuration settings for SQL database backup policy."
+  type = object({
+    name = string
+    retention_daily = object({
+      count = number
+    })
+    retention_weekly = object({
+      count   = number
+      weekday = string
+    })
+    retention_monthly = object({
+      count   = number
+      weekday = string
+      week    = string
+    })
+  })
+}
+
