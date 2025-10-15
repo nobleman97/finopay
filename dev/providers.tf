@@ -6,9 +6,13 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 4.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
 
-   backend "azurerm" {
+  backend "azurerm" {
     resource_group_name  = "management"
     storage_account_name = "finopaydemosa"
     container_name       = "state-files"

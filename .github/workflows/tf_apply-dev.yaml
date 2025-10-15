@@ -1,4 +1,4 @@
-name: Deploy Infrastructure with Terraform
+name: Dev - TF Apply
 
 on:
   # push:
@@ -10,6 +10,8 @@ on:
 env:
   TF_VERSION: "1.13.3"
   TF_DIR: "./dev"
+  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+
 
 permissions:
   id-token: write
