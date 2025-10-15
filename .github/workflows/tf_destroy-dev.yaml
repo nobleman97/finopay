@@ -28,17 +28,17 @@ jobs:
         working-directory: ${{ env.TF_DIR }}
 
     steps:
-    # - name: Validate Confirmation
-    #   run: |
-    #     if [ "${{ github.event.inputs.confirmation }}" != "destroy" ]; then
-    #       echo "ERROR: Confirmation input must be 'destroy' to proceed"
-    #       echo "You entered: ${{ github.event.inputs.confirmation }}"
-    #       exit 1
-    #     fi
-    #     echo "Confirmation validated. Proceeding with destroy..."
-
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Validate Confirmation
+      run: |
+        if [ "${{ github.event.inputs.confirmation }}" != "destroy" ]; then
+          echo "ERROR: Confirmation input must be 'destroy' to proceed"
+          echo "You entered: ${{ github.event.inputs.confirmation }}"
+          exit 1
+        fi
+        echo "Confirmation validated. Proceeding with destroy..."
 
     - name: Azure Login using OIDC
       uses: azure/login@v2
