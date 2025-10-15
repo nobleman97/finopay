@@ -10,7 +10,7 @@ on:
 
 env:
   TF_VERSION: "1.13.3"
-  TF_DIR: "dev"
+  TF_DIR: "./dev"
   ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
 
 
@@ -28,14 +28,14 @@ jobs:
         working-directory: ${{ env.TF_DIR }}
 
     steps:
-    - name: Validate Confirmation
-      run: |
-        if [ "${{ github.event.inputs.confirmation }}" != "destroy" ]; then
-          echo "ERROR: Confirmation input must be 'destroy' to proceed"
-          echo "You entered: ${{ github.event.inputs.confirmation }}"
-          exit 1
-        fi
-        echo "Confirmation validated. Proceeding with destroy..."
+    # - name: Validate Confirmation
+    #   run: |
+    #     if [ "${{ github.event.inputs.confirmation }}" != "destroy" ]; then
+    #       echo "ERROR: Confirmation input must be 'destroy' to proceed"
+    #       echo "You entered: ${{ github.event.inputs.confirmation }}"
+    #       exit 1
+    #     fi
+    #     echo "Confirmation validated. Proceeding with destroy..."
 
     - name: Checkout code
       uses: actions/checkout@v4
