@@ -28,6 +28,9 @@ jobs:
         working-directory: ${{ env.TF_DIR }}
 
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
     - name: Validate Confirmation
       run: |
         if [ "${{ github.event.inputs.confirmation }}" != "destroy" ]; then
@@ -36,9 +39,6 @@ jobs:
           exit 1
         fi
         echo "Confirmation validated. Proceeding with destroy..."
-
-    - name: Checkout code
-      uses: actions/checkout@v4
 
     - name: Azure Login using OIDC
       uses: azure/login@v2
